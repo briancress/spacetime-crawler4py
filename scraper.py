@@ -30,8 +30,8 @@ def extract_next_links(url, resp):
         href = link.get('href')
         if href:
             full_url = urljoin(resp.url, href)
-            if is_valid(full_url):
-                links.append(full_url)
+            #if is_valid(full_url):
+            links.append(full_url)
 
     return links
     # return list()
