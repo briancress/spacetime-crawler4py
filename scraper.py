@@ -8,10 +8,10 @@ word_frequency = {}
 subdomains = {}
 
 def scraper(url, resp):
-    # global unique_pages
-    # global longest_page_words
-    # global word_frequency
-    # global subdomains
+    global unique_pages
+    global longest_page_words
+    global word_frequency
+    global subdomains
 
     links = extract_next_links(url, resp)
 
@@ -21,11 +21,11 @@ def scraper(url, resp):
     for link in links:
         words = link.split('/')
         word_count = len(words[-1].split('-')) if words[-1] else 0
-        longest_page_word_count = max(longest_page_word_count, word_count)
+        longest_page_words = max(longest_page_words, word_count)
 
     update_word_frequency(resp.raw_response.content)
 
-    update_subdomain()
+    update_subdomain(url)
 
     return [link for link in links if is_valid(link)]
 
@@ -67,6 +67,10 @@ def is_valid(url):
         parsed = urlparse(url)
         if parsed.scheme not in set(["http", "https"]):
             return False
+        if not re.match(r"(www\.)?(ics|cs|informatics|stat)\.uci\.edu", parsed.netloc):
+            return False
+        if not re.match(r"/\w+", parsed.path):
+            return False
         return not re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r" |png|tiff?|mid|mp2|mp3|mp4"
@@ -81,8 +85,8 @@ def is_valid(url):
         print ("TypeError for ", parsed)
         raise
 
-update_word_frequency(response_content):
-    # global word_frequency
+def update_word_frequency(response_content):
+    global word_frequency
 
     english_stopwords = {
     "a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are", "aren't", 
@@ -95,18 +99,21 @@ update_word_frequency(response_content):
     "other", "ought", "our", "ours"
     }
 
-    extracted_words = re.findall(r'\b[A-Za-z]+\b', content.decode('utf-8'))
+    extracted_words = re.findall(r'\b[A-Za-z]+\b', response_content.decode('utf-8'))
 
-    for word in words:
+    for word in extracted_words:
         word = word.lower()
 
         if word not in word_frequency and word not in english_stopwords:
-            word_frequency[word] = 0
-        word_frequency[word] += 1
+            word_frequency[word] = 1
+        elif word in word_frequency and word not in english_stopwords:
+            word_frequency[word] += 1
+        else:
+            pass
 
 
-update_subdomain(url):
-    # global subdomains
+def update_subdomain(url):
+    global subdomains
 
     parsed_url = urlparse(url)
     domain = parsed_url.netloc.split('.')[0]
