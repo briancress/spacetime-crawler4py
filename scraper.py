@@ -1,5 +1,6 @@
 import re
 from urllib.parse import urlparse, urljoin
+from urllib import robotparser
 from bs4 import BeautifulSoup
 
 # Set of unique pages
@@ -115,6 +116,8 @@ def is_valid(url):
         if not re.match(r"/\w+", parsed.path):
             return False
         if url in visited_urls:
+            return False
+        if not robots_valid_search(url):
             return False
         return not re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico"
@@ -237,3 +240,28 @@ def update_subdomain(url):
         if subdomain not in subdomains:
             subdomains[subdomain] = 0
         subdomains[subdomain] 
+
+def robots_valid_search(url):
+    try:
+        # gets site portion of url
+        site = urlparse(url).netloc
+        # gets robots txt of that site
+        robots_txt_url = f"http://{site}/robots.txt"
+        robotUrl = requests.get(robots_txt_url)
+
+        # if robots site can successfully be reached
+        if robotUrl.status_code == 200:
+            txt = robotUrl.text # the content of robots
+            # goes through every line of the content and determines which are disallowed
+            for line in txt.split('\n'):
+                if line.strip().startswith('Disallow:'):
+                    disallowed_path = line.split(': ')[1].strip()
+                    if url.endswith(disallowed_path):
+                        return False
+            return True 
+        else:
+            return True
+    # throws exception
+    except Exception as e:
+        return True
+
