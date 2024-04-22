@@ -12,8 +12,12 @@ word_frequency = {}
 subdomains = {}
 # Set of all visited urls
 visited_urls = set()
+# Used to index the previous few links to detect traps
+previous_links = []
 
 def scraper(url, resp):
+    # DO WE USE URL OR RESP.URL IN SCRAPER?
+    # we already used resp.url in extract_next_links so idk ????????????????????????????????????????????????????????????????????????
     global unique_pages
     global longest_page_words
     global word_frequency
@@ -25,10 +29,17 @@ def scraper(url, resp):
     # Return empty links and don't count if bad status
     if links == []:
         return []
+    
+    #print(f'Checking trap: {url}')
+    if is_Trap(url):
+        print(f'Is a trap: {url}')
+        return []
 
     # Add url to visited
     # visited_urls contains all visited urls, the entire url (not used for counting unique urls, only for not re-visiting)
     visited_urls.add(url)
+
+    previous_links.append(url)
 
     # Uniqueness is only established by URL, not fragment
     # Get rid of fragment after '#' and add to unique pages
@@ -81,6 +92,7 @@ def extract_next_links(url, resp):
         href = link.get('href')
         # Join the original url with the new href and append
         if href:
+            # Join with resp.url instead of url to bypass redirects
             full_url = urljoin(resp.url, href)
             links.append(full_url)
 
@@ -94,6 +106,8 @@ def is_valid(url):
 
     try:
         parsed = urlparse(url)
+        if is_Trap(url):
+            return False
         if parsed.scheme not in set(["http", "https"]):
             return False
         if not re.match(r"(www\.)?(ics|cs|informatics|stat)\.uci\.edu", parsed.netloc):
@@ -115,6 +129,45 @@ def is_valid(url):
     except TypeError:
         print ("TypeError for ", parsed)
         raise
+
+def is_Trap(url):
+    global visited_urls
+    global previous_links
+
+    if len(url) > 300:
+        return True
+
+    if len(previous_links) > 50:
+
+        # Loop through previous 20 URLs
+        for i in range(-1, -20, -1):
+            past_url = previous_links[i]
+
+            url_length = len(url)
+            num_differences = 0
+
+            if url_length != len(past_url):
+                return False
+            
+            # Loop through each past URL and compare to current
+            for j in range(url_length):
+
+                if url[j] != past_url[j]:
+                    num_differences += 1
+
+            if num_differences > 3:
+                # Not in trap if URLs differ by more than 3 characters
+                return False
+            else:
+                # Reset for next URL
+                num_differences = 0
+        # If it loops through all 20 URLs and their differences arent high enough, you are in a trap
+        return True
+
+    else:
+        # False (Not in trap) if haven't even visited 50 urls yet
+        return False
+
 
 def update_longest_word_page(url, page_content):
     global longest_page_words
