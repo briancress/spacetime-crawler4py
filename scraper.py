@@ -138,12 +138,14 @@ def is_Trap(url):
     global previous_links
 
     if len(url) > 300:
+        with open("TestTrap.txt", "a") as file:
+            file.write("It's a 300 trap " + url + "/n")
         return True
 
     if len(previous_links) > 50:
 
         # Loop through previous 20 URLs
-        for i in range(-1, -20, -1):
+        for i in range(-1, -10, -1):
             past_url = previous_links[i]
 
             url_length = len(url)
@@ -165,6 +167,8 @@ def is_Trap(url):
                 # Reset for next URL
                 num_differences = 0
         # If it loops through all 20 URLs and their differences arent high enough, you are in a trap
+        with open("TestTrap.txt", "a") as file:
+            file.write("It's a trap " + url + "/n")
         return True
 
     else:
