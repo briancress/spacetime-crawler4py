@@ -22,13 +22,28 @@ class Worker(Thread):
             tbd_url = self.frontier.get_tbd_url()
             if not tbd_url:
                 self.logger.info("Frontier is empty. Stopping Crawler.")
+                with open("Finished.txt", "a") as file:
+                    file.write("Frontier is empty, stopped")
                 break
-            resp = download(tbd_url, self.config, self.logger)
-            self.logger.info(
+            try:
+                resp = download(tbd_url, self.config, self.logger)
+            except:
+                # Wait 10 seconds if server is down
+                with open("Finished.txt", "a") as file:
+                    file.write("Trying to reconnect")
+                break
+                time.sleep(10)
+                continue
+    
+            
+            # Only continue if it didn't except ?
+            if resp != None:
+                self.logger.info(
                 f"Downloaded {tbd_url}, status <{resp.status}>, "
                 f"using cache {self.config.cache_server}.")
-            scraped_urls = scraper.scraper(tbd_url, resp)
-            for scraped_url in scraped_urls:
-                self.frontier.add_url(scraped_url)
-            self.frontier.mark_url_complete(tbd_url)
-            time.sleep(self.config.time_delay)
+
+                scraped_urls = scraper.scraper(tbd_url, resp)
+                for scraped_url in scraped_urls:
+                    self.frontier.add_url(scraped_url)
+                self.frontier.mark_url_complete(tbd_url)
+                time.sleep(self.config.time_delay)

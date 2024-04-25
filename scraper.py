@@ -2,6 +2,7 @@ import re
 from urllib.parse import urlparse, urljoin
 from urllib import robotparser
 from bs4 import BeautifulSoup
+from nltk.tokenize import word_tokenize
 
 # Set of unique pages
 unique_pages = set()
@@ -16,6 +17,25 @@ visited_urls = set()
 # Used to index the previous few links to detect traps
 previous_links = []
 
+count = 0
+
+def record_data():
+    # Log all data to it's files
+
+    # Record number of unique pages
+    num_unique_pages = len(unique_pages)
+    with open(".txt", "a") as file:
+            file.write("It's a trap " + url + "\n")
+    # Record longest page in terms of words
+    longest_page = longest_page_words[0]
+    longest_page_count = longest_page_words[1]
+    # Record most common 50 words
+
+    # Record all subdomains under ics.uci.edu
+
+
+    return
+
 def scraper(url, resp):
     # DO WE USE URL OR RESP.URL IN SCRAPER?
     # we already used resp.url in extract_next_links so idk ????????????????????????????????????????????????????????????????????????
@@ -24,12 +44,25 @@ def scraper(url, resp):
     global word_frequency
     global subdomains
     global visited_urls
+    global count
+    global previous_links
 
-    links = extract_next_links(url, resp)
+    url = url.split("#")[0]
+
+    try:
+        # Use a try in case it gives 200 but page doesn't exist
+        links = extract_next_links(url, resp)
+    except Exception as e:
+        print('Exception: Error extracting next link')
+        return []
 
     # Return empty links and don't count if bad status
     if links == []:
         return []
+
+    # Don't count or search if not high content
+    # if highContent(resp.raw_response.content) == False:
+    #     return []
     
     #print(f'Checking trap: {url}')
     if is_Trap(url):
@@ -39,8 +72,19 @@ def scraper(url, resp):
     # Add url to visited
     # visited_urls contains all visited urls, the entire url (not used for counting unique urls, only for not re-visiting)
     visited_urls.add(url)
+    visited_urls.add(resp.url)
 
     previous_links.append(url)
+
+    if len(previous_links) > 200:
+        previous_links = []
+
+    count += 1
+    print('Current count:' + str(count))
+
+    if count > 500 and count % 500 == 0:
+        # call recording function
+        pass
 
     # Uniqueness is only established by URL, not fragment
     # Get rid of fragment after '#' and add to unique pages
@@ -65,7 +109,12 @@ def scraper(url, resp):
     print(f"Visiting url : '{url}'")
 
     #return [link for link in links if is_valid(link)]
-    return [link for link in links if is_valid(link)]
+    f = [link for link in links if is_valid(link)]
+    for link in links:
+        visited_urls.add(link)
+        previous_links.append(url)
+
+    return f
 
 def extract_next_links(url, resp):
     # Implementation required.
@@ -93,8 +142,14 @@ def extract_next_links(url, resp):
         href = link.get('href')
         # Join the original url with the new href and append
         if href:
-            # Join with resp.url instead of url to bypass redirects
-            full_url = urljoin(resp.url, href)
+            # Check if href is a full URL
+            if href.startswith('http://') or href.startswith('https://'):
+                full_url = href
+            else:
+                # Join relative URL with the original URL (resp.url)
+                full_url = urljoin(resp.url, href)
+            # Remove fragment from the full URL
+            full_url = full_url.split('#')[0]
             links.append(full_url)
 
     return links
@@ -107,6 +162,8 @@ def is_valid(url):
 
     try:
         parsed = urlparse(url)
+        if "filter" in url:
+            return False
         if is_Trap(url):
             return False
         if parsed.scheme not in set(["http", "https"]):
@@ -138,11 +195,11 @@ def is_Trap(url):
     global previous_links
 
     if len(url) > 300:
-        with open("TestTrap.txt", "a") as file:
-            file.write("It's a 300 trap " + url + "/n")
+        # with open("TestTrap.txt", "a") as file:
+        #     file.write("It's a 300 trap " + url + "\n")
         return True
 
-    if len(previous_links) > 50:
+    if len(previous_links) > 15:
 
         # Loop through previous 20 URLs
         for i in range(-1, -10, -1):
@@ -167,8 +224,8 @@ def is_Trap(url):
                 # Reset for next URL
                 num_differences = 0
         # If it loops through all 20 URLs and their differences arent high enough, you are in a trap
-        with open("TestTrap.txt", "a") as file:
-            file.write("It's a trap " + url + "/n")
+        # with open("TestTrap.txt", "a") as file:
+        #     file.write("It's a trap " + url + "\n")
         return True
 
     else:
@@ -225,6 +282,19 @@ def update_word_frequency(page_content):
         else:
             pass
 
+def highContent(page_content):
+
+
+    soup = BeautifulSoup(page_content, 'html.parser')
+    # Get the actual text content fromt he created soup
+    text_content = soup.get_text(separator = ' ')
+    # extract all the words using regex
+    extracted_words = word_tokenize(text_content)
+
+    if len(extracted_words) > 1800:
+        return True
+    else:
+        return False
 
 def update_subdomain(url):
     global subdomains
