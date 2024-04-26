@@ -3,6 +3,8 @@ from urllib.parse import urlparse, urljoin
 from urllib import robotparser
 from bs4 import BeautifulSoup
 from nltk.tokenize import word_tokenize
+import hashlib
+previous_hashes = set()
 
 # Set of unique pages
 unique_pages = set()
@@ -19,20 +21,44 @@ previous_links = []
 
 count = 0
 
+def calculate_hash(content):
+    # Calculate hash value
+    content_hash = hashlib.sha256(content).hexdigest()
+    return content_hash
+
 def record_data():
     # Log all data to it's files
 
     # Record number of unique pages
     num_unique_pages = len(unique_pages)
-    with open(".txt", "a") as file:
-            file.write("It's a trap " + url + "\n")
+    with open("UniquePages.txt", "a") as file:
+        file.write("Number of Unique Pages: " + str(num_unique_pages) + "\n")
+
     # Record longest page in terms of words
     longest_page = longest_page_words[0]
     longest_page_count = longest_page_words[1]
+    with open("Longestpage.txt", "a") as file:
+        file.write("Longest Page: " + str(longest_page) + "\n")
+        file.write("Number of words: " + str(longest_page_count) + "\n")
+
     # Record most common 50 words
+    sorted_word_frequency = dict(sorted(word_frequency.items(), key=lambda item: (-item[1], item[0])))
+    with open("TopWords.txt", "w") as file:
+        # Iterate over dictionary
+        timeCounter = 0
+        for word, frequency in sorted_word_frequency.items():
+            file.write(f"{word}: {frequency}\n")
+            # Break the loop when 50 items are written
+            if timeCounter >= 50:
+                break
+            timeCounter += 1
 
     # Record all subdomains under ics.uci.edu
-
+    sorted_subdomains = dict(sorted(subdomains.items()))
+    with open("Subdomains.txt", "w") as file:
+        # Iterate over dictionary
+        for sub, frequency in sorted_subdomains.items():
+            file.write(f"{sub}: {frequency}\n")
 
     return
 
@@ -46,7 +72,9 @@ def scraper(url, resp):
     global visited_urls
     global count
     global previous_links
+    global previous_hashes
 
+    url = resp.url
     url = url.split("#")[0]
 
     try:
@@ -59,31 +87,35 @@ def scraper(url, resp):
     # Return empty links and don't count if bad status
     if links == []:
         return []
-
-    # Don't count or search if not high content
-    # if highContent(resp.raw_response.content) == False:
-    #     return []
     
     #print(f'Checking trap: {url}')
     if is_Trap(url):
         print(f'Is a trap: {url}')
         return []
 
+    current_hash = calculate_hash(resp.raw_response.content)
+    if current_hash in previous_hashes:
+        print('Not browsing, exact page has been seen')
+        return []
+    else:
+        previous_hashes.add(current_hash)
+
     # Add url to visited
     # visited_urls contains all visited urls, the entire url (not used for counting unique urls, only for not re-visiting)
     visited_urls.add(url)
-    visited_urls.add(resp.url)
+    #visited_urls.add(resp.url)
 
     previous_links.append(url)
 
-    if len(previous_links) > 200:
+    if len(previous_links) > 500:
         previous_links = []
 
     count += 1
     print('Current count:' + str(count))
 
-    if count > 500 and count % 500 == 0:
+    if count >= 300 and count % 300 == 0:
         # call recording function
+        record_data()
         pass
 
     # Uniqueness is only established by URL, not fragment
@@ -93,12 +125,6 @@ def scraper(url, resp):
 
     # Update longest page word count
     update_longest_word_page(url, resp.raw_response.content)
-
-    # I think this is counting the words in the link instead of the words in the page
-    # for link in links:
-    #     words = link.split('/')
-    #     word_count = len(words[-1].split('-')) if words[-1] else 0
-    #     longest_page_words = max(longest_page_words, word_count)
 
     # Update word frequency for current URL page
     update_word_frequency(resp.raw_response.content)
@@ -110,9 +136,9 @@ def scraper(url, resp):
 
     #return [link for link in links if is_valid(link)]
     f = [link for link in links if is_valid(link)]
-    for link in links:
-        visited_urls.add(link)
-        previous_links.append(url)
+    #for link in links:
+     #   visited_urls.add(link)
+      #  previous_links.append(url)
 
     return f
 
@@ -147,12 +173,36 @@ def extract_next_links(url, resp):
                 full_url = href
             else:
                 # Join relative URL with the original URL (resp.url)
-                full_url = urljoin(resp.url, href)
+                #base_url = urlparse(resp.url).scheme + '://' + urlparse(resp.url).netloc
+                #full_url = urljoin(base_url, href)
+                full_url = urljoin(url, href)
+               # if has_repeating_component(full_url):
+                   # base_url = urlparse(resp.url).scheme + '://' + urlparse(resp.url).netloc
+                    #full_url = urljoin(base_url, href)
             # Remove fragment from the full URL
             full_url = full_url.split('#')[0]
             links.append(full_url)
 
     return links
+
+
+def has_repeating_component(url):
+    # Split the URL by slashes
+    components = url.split('/')
+
+    # Count occurrences of each component
+    component_count = {}
+    for component in components:
+        if component in component_count:
+            component_count[component] += 1
+        else:
+            component_count[component] = 1
+    # Check if any component repeats
+    for count in component_count.values():
+        if count >= 2:
+            return True
+
+    return False
 
 def is_valid(url):
     # Decide whether to crawl this url or not. 
@@ -199,10 +249,10 @@ def is_Trap(url):
         #     file.write("It's a 300 trap " + url + "\n")
         return True
 
-    if len(previous_links) > 15:
+    if len(previous_links) > 150:
 
         # Loop through previous 20 URLs
-        for i in range(-1, -10, -1):
+        for i in range(-1, -140, -1):
             past_url = previous_links[i]
 
             url_length = len(url)
@@ -224,8 +274,8 @@ def is_Trap(url):
                 # Reset for next URL
                 num_differences = 0
         # If it loops through all 20 URLs and their differences arent high enough, you are in a trap
-        # with open("TestTrap.txt", "a") as file:
-        #     file.write("It's a trap " + url + "\n")
+        with open("TestTrap.txt", "a") as file:
+            file.write("It's a trap " + url + "\n")
         return True
 
     else:
@@ -253,16 +303,20 @@ def update_longest_word_page(url, page_content):
 def update_word_frequency(page_content):
     global word_frequency
 
-    english_stopwords = {
-    "a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are", "aren't", 
-    "as", "at", "be", "because", "been", "before", "being", "below", "between", "both", "but", "by", "can't", 
-    "cannot", "could", "couldn't", "did", "didn't", "do", "does", "doesn't", "doing", "don't", "down", "during", 
-    "each", "few", "for", "from", "further", "had", "hadn't", "has", "hasn't", "have", "haven't", "having", "he", 
-    "he'd", "he'll", "he's", "her", "here", "here's", "hers", "herself", "him", "himself", "his", "how", "how's", 
-    "i", "i'd", "i'll", "i'm", "i've", "if", "in", "into", "is", "isn't", "it", "it's", "its", "itself", "let's", 
-    "me", "more", "most", "mustn't", "my", "myself", "no", "nor", "not", "of", "off", "on", "once", "only", "or", 
-    "other", "ought", "our", "ours"
-    }
+    english_stopwords = {'a', 'about', 'above', 'after', 'again', 'against', 'all', 'am', 'an', 
+    'and', 'any', 'are', "aren't", 'as', 'at', 'be', 'because', 'been', 'before', 'being', 'below', 
+    'between', 'both', 'but', 'by', "can't", 'cannot', 'could', "couldn't", 'did', "didn't", 'do', 'does', 
+    "doesn't", 'doing', "don't", 'down', 'during', 'each', 'few', 'for', 'from', 'further', 'had', "hadn't", 
+    'has', "hasn't", 'have', "haven't", 'having', 'he', "he'd", "he'll", "he's", 'her', 'here', "here's", 'hers', 
+    'herself', 'him', 'himself', 'his', 'how', "how's", 'i', "i'd", "i'll", "i'm", "i've", 'if', 'in', 'into', 'is', 
+    "isn't", 'it', "it's", 'its', 'itself', "let's", 'me', 'more', 'most', "mustn't", 'my', 'myself', 'no', 'nor', 
+    'not', 'of', 'off', 'on', 'once', 'only', 'or', 'other', 'ought', 'our', 'ours', '', '', '', 'ourselves', 'out', 
+    'over', 'own', 'same', "shan't", 'she', "she'd", "she'll", "she's", 'should', "shouldn't", 'so', 'some', 'such', 
+    'than', 'that', "that's", 'the', 'their', 'theirs', 'them', 'themselves', 'then', 'there', "there's", 'these', 
+    'they', "they'd", "they'll", "they're", "they've", 'this', 'those', 'through', 'to', 'too', 'under', 'until', 
+    'up', 'very', 'was', "wasn't", 'we', "we'd", "we'll", "we're", "we've", 'were', "weren't", 'what', "what's", 
+    'when', "when's", 'where', "where's", 'which', 'while', 'who', "who's", 'whom', 'why', "why's", 'with', "won't", 'would', 
+    "wouldn't", 'you', "you'd", "you'll", "you're", "you've", 'your', 'yours', 'yourself', 'yourselves'}
 
     # Parse the page content with beautiful soup
     soup = BeautifulSoup(page_content, 'html.parser')
@@ -283,8 +337,6 @@ def update_word_frequency(page_content):
             pass
 
 def highContent(page_content):
-
-
     soup = BeautifulSoup(page_content, 'html.parser')
     # Get the actual text content fromt he created soup
     text_content = soup.get_text(separator = ' ')
@@ -311,9 +363,10 @@ def update_subdomain(url):
     # Check if the domain ends with ics.uci.edu
     if domain.endswith('ics.uci.edu'):
         # Increment the subdomain's count
-        if subdomain not in subdomains:
-            subdomains[subdomain] = 0
-        subdomains[subdomain] 
+        if domain not in subdomains:
+            subdomains[domain] = 1
+        else:
+            subdomains[domain] += 1
 
 def robots_valid_search(url):
     try:
@@ -338,4 +391,3 @@ def robots_valid_search(url):
     # throws exception
     except Exception as e:
         return True
-
