@@ -1,1 +1,1 @@
-Frontier is empty, stoppedTrying to reconnect
+Frontier is empty, stopped

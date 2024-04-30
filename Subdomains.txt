@@ -1,1 +1,85 @@
-www: 0
+ics.uci.edu: 63
+www.ics.uci.edu: 38
+www.informatics.uci.edu: 75
+-------------------
+ics.uci.edu: 63
+www.ics.uci.edu: 161
+www.informatics.uci.edu: 252
+-------------------
+ics.uci.edu: 63
+www.ics.uci.edu: 350
+www.informatics.uci.edu: 363
+-------------------
+ics.uci.edu: 63
+www.ics.uci.edu: 351
+www.informatics.uci.edu: 662
+-------------------
+ics.uci.edu: 63
+www.ics.uci.edu: 359
+www.informatics.uci.edu: 954
+-------------------
+ics.uci.edu: 63
+www.ics.uci.edu: 360
+www.informatics.uci.edu: 1023
+-------------------
+ics.uci.edu: 63
+www.ics.uci.edu: 555
+www.informatics.uci.edu: 1023
+-------------------
+ics.uci.edu: 63
+www.ics.uci.edu: 629
+www.informatics.uci.edu: 1023
+-------------------
+ics.uci.edu: 233
+www.ics.uci.edu: 667
+www.informatics.uci.edu: 1087
+-------------------
+ics.uci.edu: 528
+www.ics.uci.edu: 667
+www.informatics.uci.edu: 1087
+-------------------
+ics.uci.edu: 819
+www.ics.uci.edu: 676
+www.informatics.uci.edu: 1087
+-------------------
+ics.uci.edu: 1118
+www.ics.uci.edu: 677
+www.informatics.uci.edu: 1087
+-------------------
+ics.uci.edu: 1418
+www.ics.uci.edu: 677
+www.informatics.uci.edu: 1087
+-------------------
+ics.uci.edu: 1718
+www.ics.uci.edu: 677
+www.informatics.uci.edu: 1087
+-------------------
+ics.uci.edu: 2018
+www.ics.uci.edu: 677
+www.informatics.uci.edu: 1087
+-------------------
+ics.uci.edu: 2224
+informatics.uci.edu: 19
+www.ics.uci.edu: 678
+www.informatics.uci.edu: 1161
+-------------------
+ics.uci.edu: 2510
+informatics.uci.edu: 19
+www.ics.uci.edu: 692
+www.informatics.uci.edu: 1161
+-------------------
+ics.uci.edu: 2761
+informatics.uci.edu: 19
+www.ics.uci.edu: 706
+www.informatics.uci.edu: 1161
+-------------------
+ics.uci.edu: 3017
+informatics.uci.edu: 19
+www.ics.uci.edu: 719
+www.informatics.uci.edu: 1167
+-------------------
+ics.uci.edu: 3028
+informatics.uci.edu: 19
+www.ics.uci.edu: 873
+www.informatics.uci.edu: 1174
+-------------------

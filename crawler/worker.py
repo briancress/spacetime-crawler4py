@@ -22,8 +22,10 @@ class Worker(Thread):
             tbd_url = self.frontier.get_tbd_url()
             if not tbd_url:
                 self.logger.info("Frontier is empty. Stopping Crawler.")
+                scraper.record_data()
                 with open("Finished.txt", "a") as file:
                     file.write("Frontier is empty, stopped")
+
                 break
             try:
                 resp = download(tbd_url, self.config, self.logger)

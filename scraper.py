@@ -1,10 +1,10 @@
 import re
-from urllib.parse import urlparse, urljoin
+from urllib.parse import urlparse, urljoin, urlunparse
 from urllib import robotparser
 from bs4 import BeautifulSoup
 from nltk.tokenize import word_tokenize
 import hashlib
-previous_hashes = set()
+
 
 # Set of unique pages
 unique_pages = set()
@@ -14,12 +14,33 @@ longest_page_words = ['page_url', 0]
 word_frequency = {}
 # Dictionary containing [subdomain] = # of occurrences
 subdomains = {}
+
+
 # Set of all visited urls
 visited_urls = set()
 # Used to index the previous few links to detect traps
 previous_links = []
+# Depth
+depth_dict = {}
+# Set of hashes of previous pages
+previous_hashes = set()
+# Normalized paths
+normalized_paths = set()
 
 count = 0
+
+def normalize(url):
+    parsed_url = urlparse(url)
+    path_segments = []
+
+    for segment in parsed_url.path.split('/'):
+        if segment and segment not in path_segments:
+
+            path_segments.append(segment)
+
+    # Get normalized path up til path, excludes fragments, query, etc
+    normalized_path = '/'.join(path_segments)
+    return urlunparse((parsed_url.scheme, parsed_url.netloc, normalized_path, parsed_url.params, parsed_url.query, ''))
 
 def calculate_hash(content):
     # Calculate hash value
@@ -43,7 +64,7 @@ def record_data():
 
     # Record most common 50 words
     sorted_word_frequency = dict(sorted(word_frequency.items(), key=lambda item: (-item[1], item[0])))
-    with open("TopWords.txt", "w") as file:
+    with open("TopWords.txt", "a") as file:
         # Iterate over dictionary
         timeCounter = 0
         for word, frequency in sorted_word_frequency.items():
@@ -52,13 +73,15 @@ def record_data():
             if timeCounter >= 50:
                 break
             timeCounter += 1
+        file.write(f"-------------------\n")
 
     # Record all subdomains under ics.uci.edu
     sorted_subdomains = dict(sorted(subdomains.items()))
-    with open("Subdomains.txt", "w") as file:
+    with open("Subdomains.txt", "a") as file:
         # Iterate over dictionary
         for sub, frequency in sorted_subdomains.items():
             file.write(f"{sub}: {frequency}\n")
+        file.write(f"-------------------\n")
 
     return
 
@@ -73,9 +96,51 @@ def scraper(url, resp):
     global count
     global previous_links
     global previous_hashes
+    global depth_dict
+    global normalized_paths
+
+    if url != resp.url:
+        # if it is a redirect, index original url so it doesn't visit again
+        visited_urls.add(url)
+        previous_links.append(url)
+        norm1 = normalize(url)
+        normalized_paths.add(norm1)
 
     url = resp.url
     url = url.split("#")[0]
+
+    # Get current depth based on first / after path
+    parsed_url = urlparse(url)
+
+    # Get the first part of the path
+    if parsed_url.path:
+        first_part_path = parsed_url.path.split('/', 2)[1]
+    else:
+        first_part_path = ""
+
+    # Reconstruct the URL with the first part of the path
+    first_part_url = f"{parsed_url.scheme}://{parsed_url.netloc}/{first_part_path}"
+
+    if first_part_url not in depth_dict:
+        depth_dict[first_part_url] = 0
+    
+    current_depth = depth_dict[first_part_url]
+
+    # Don't crawl if over depth limit
+    if current_depth > 300:
+        return []
+
+    #print(f'Checking trap: {url}')
+    #if is_Trap(url):
+       # print(f'Is a trap: {url}')
+       # return []
+
+    # Add url to visited
+    # visited_urls contains all visited urls, the entire url (not used for counting unique urls, only for not re-visiting)
+    visited_urls.add(url)
+    previous_links.append(url)
+    norm = normalize(url)
+    normalized_paths.add(norm)
 
     try:
         # Use a try in case it gives 200 but page doesn't exist
@@ -87,11 +152,6 @@ def scraper(url, resp):
     # Return empty links and don't count if bad status
     if links == []:
         return []
-    
-    #print(f'Checking trap: {url}')
-    if is_Trap(url):
-        print(f'Is a trap: {url}')
-        return []
 
     current_hash = calculate_hash(resp.raw_response.content)
     if current_hash in previous_hashes:
@@ -100,12 +160,7 @@ def scraper(url, resp):
     else:
         previous_hashes.add(current_hash)
 
-    # Add url to visited
-    # visited_urls contains all visited urls, the entire url (not used for counting unique urls, only for not re-visiting)
-    visited_urls.add(url)
-    #visited_urls.add(resp.url)
 
-    previous_links.append(url)
 
     if len(previous_links) > 500:
         previous_links = []
@@ -119,9 +174,7 @@ def scraper(url, resp):
         pass
 
     # Uniqueness is only established by URL, not fragment
-    # Get rid of fragment after '#' and add to unique pages
-    no_fragment_url = url.split("#")[0]
-    unique_pages.add(no_fragment_url)
+    unique_pages.add(url)
 
     # Update longest page word count
     update_longest_word_page(url, resp.raw_response.content)
@@ -135,12 +188,35 @@ def scraper(url, resp):
     print(f"Visiting url : '{url}'")
 
     #return [link for link in links if is_valid(link)]
-    f = [link for link in links if is_valid(link)]
-    #for link in links:
-     #   visited_urls.add(link)
-      #  previous_links.append(url)
+    frontier_list = [link for link in links if is_valid(link)]
 
-    return f
+    # Add to seen urls
+    for link in frontier_list:
+       visited_urls.add(link)
+       previous_links.append(url)
+       # Also add normalized link into discovered
+       normalized_link = normalize(link)
+       normalized_paths.add(normalized_link)
+        
+    for link in frontier_list:
+        # Get current depth based on first / after path
+        parsed_url = urlparse(link)
+
+        # Get the first part of the path
+        if parsed_url.path:
+            first_part_path = parsed_url.path.split('/', 2)[1]
+        else:
+            first_part_path = ""
+
+        # Reconstruct the URL with the first part of the path
+        first_part_url = f"{parsed_url.scheme}://{parsed_url.netloc}/{first_part_path}"
+
+        if first_part_url not in depth_dict:
+            depth_dict[first_part_url] = 0
+        else:
+            depth_dict[first_part_url] += 1
+
+    return frontier_list
 
 def extract_next_links(url, resp):
     # Implementation required.
@@ -168,17 +244,10 @@ def extract_next_links(url, resp):
         href = link.get('href')
         # Join the original url with the new href and append
         if href:
-            # Check if href is a full URL
-            if href.startswith('http://') or href.startswith('https://'):
-                full_url = href
-            else:
+            full_url = urljoin(url, href)
                 # Join relative URL with the original URL (resp.url)
                 #base_url = urlparse(resp.url).scheme + '://' + urlparse(resp.url).netloc
                 #full_url = urljoin(base_url, href)
-                full_url = urljoin(url, href)
-               # if has_repeating_component(full_url):
-                   # base_url = urlparse(resp.url).scheme + '://' + urlparse(resp.url).netloc
-                    #full_url = urljoin(base_url, href)
             # Remove fragment from the full URL
             full_url = full_url.split('#')[0]
             links.append(full_url)
@@ -186,32 +255,18 @@ def extract_next_links(url, resp):
     return links
 
 
-def has_repeating_component(url):
-    # Split the URL by slashes
-    components = url.split('/')
-
-    # Count occurrences of each component
-    component_count = {}
-    for component in components:
-        if component in component_count:
-            component_count[component] += 1
-        else:
-            component_count[component] = 1
-    # Check if any component repeats
-    for count in component_count.values():
-        if count >= 2:
-            return True
-
-    return False
-
 def is_valid(url):
     # Decide whether to crawl this url or not. 
     # If you decide to crawl it, return True; otherwise return False.
     # There are already some conditions that return False.
     global visited_urls
+    global normalized_paths
 
     try:
         parsed = urlparse(url)
+        normal_link = normalize(url)
+        if normal_link in normalized_paths:
+            return False
         if "filter" in url:
             return False
         if is_Trap(url):
@@ -241,7 +296,6 @@ def is_valid(url):
         raise
 
 def is_Trap(url):
-    global visited_urls
     global previous_links
 
     if len(url) > 300:
@@ -335,18 +389,6 @@ def update_word_frequency(page_content):
             word_frequency[word] += 1
         else:
             pass
-
-def highContent(page_content):
-    soup = BeautifulSoup(page_content, 'html.parser')
-    # Get the actual text content fromt he created soup
-    text_content = soup.get_text(separator = ' ')
-    # extract all the words using regex
-    extracted_words = word_tokenize(text_content)
-
-    if len(extracted_words) > 1800:
-        return True
-    else:
-        return False
 
 def update_subdomain(url):
     global subdomains
