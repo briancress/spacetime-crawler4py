@@ -125,7 +125,7 @@ def scraper(url, resp):
     current_depth = depth_dict[first_part_url]
 
     # Don't crawl if over depth limit
-    if current_depth > 600:
+    if current_depth > 500:
         return []
 
     #print(f'Checking trap: {url}')
@@ -299,23 +299,23 @@ def correct_domain(url):
     parsed_url = urlparse(url)
     domain = parsed_url.netloc
 
-    if domain.endswith("ics.uci.edu"):
+    if domain == "ics.uci.edu" or domain.endswith(".ics.uci.edu"):
         return True
-    if domain.endswith("cs.uci.edu"):
+    if domain == "cs.uci.edu" or domain.endswith(".cs.uci.edu"):
         return True
-    if domain.endswith("informatics.uci.edu"):
+    if domain == "informatics.uci.edu" or domain.endswith(".informatics.uci.edu"):
         return True
-    if domain.endswith("stat.uci.edu"):
+    if domain == "stat.uci.edu" or domain.endswith(".stat.uci.edu"):
         return True
     return False
 
 def is_Trap(url):
     global previous_links
 
-    if len(url) > 300:
+   # if len(url) > 300:
         # with open("TestTrap.txt", "a") as file:
         #     file.write("It's a 300 trap " + url + "\n")
-        return True
+       # return True
 
     if len(previous_links) > 150:
 
@@ -397,12 +397,14 @@ def update_word_frequency(page_content):
     for word in extracted_words:
         word = word.lower()
 
-        if word not in word_frequency and word not in english_stopwords:
-            word_frequency[word] = 1
-        elif word in word_frequency and word not in english_stopwords:
-            word_frequency[word] += 1
-        else:
-            pass
+        if len(word) > 1:
+            # Only do real words
+            if word not in word_frequency and word not in english_stopwords:
+                word_frequency[word] = 1
+            elif word in word_frequency and word not in english_stopwords:
+                word_frequency[word] += 1
+            else:
+                pass
 
 def update_subdomain(url):
     global subdomains
