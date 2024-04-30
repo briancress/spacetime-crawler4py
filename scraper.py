@@ -86,8 +86,6 @@ def record_data():
     return
 
 def scraper(url, resp):
-    # DO WE USE URL OR RESP.URL IN SCRAPER?
-    # we already used resp.url in extract_next_links so idk ????????????????????????????????????????????????????????????????????????
     global unique_pages
     global longest_page_words
     global word_frequency
@@ -127,7 +125,7 @@ def scraper(url, resp):
     current_depth = depth_dict[first_part_url]
 
     # Don't crawl if over depth limit
-    if current_depth > 300:
+    if current_depth > 600:
         return []
 
     #print(f'Checking trap: {url}')
@@ -273,10 +271,12 @@ def is_valid(url):
             return False
         if parsed.scheme not in set(["http", "https"]):
             return False
-        if not re.match(r"(www\.)?(ics|cs|informatics|stat)\.uci\.edu", parsed.netloc):
+        if correct_domain(url) == False:
             return False
-        if not re.match(r"/\w+", parsed.path):
-            return False
+        #if not re.match(r"(www\.)?(ics|cs|informatics|stat)\.uci\.edu", parsed.netloc):
+         #   return False
+        #if not re.match(r"/\w+", parsed.path):
+         #   return False
         if url in visited_urls:
             return False
         if not robots_valid_search(url):
@@ -294,6 +294,20 @@ def is_valid(url):
     except TypeError:
         print ("TypeError for ", parsed)
         raise
+
+def correct_domain(url):
+    parsed_url = urlparse(url)
+    domain = parsed_url.netloc
+
+    if domain.endswith("ics.uci.edu"):
+        return True
+    if domain.endswith("cs.uci.edu"):
+        return True
+    if domain.endswith("informatics.uci.edu"):
+        return True
+    if domain.endswith("stat.uci.edu"):
+        return True
+    return False
 
 def is_Trap(url):
     global previous_links
@@ -403,7 +417,7 @@ def update_subdomain(url):
     domain = parsed_url.netloc
 
     # Check if the domain ends with ics.uci.edu
-    if domain.endswith('ics.uci.edu'):
+    if domain.endswith('.ics.uci.edu'):
         # Increment the subdomain's count
         if domain not in subdomains:
             subdomains[domain] = 1
