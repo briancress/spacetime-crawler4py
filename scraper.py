@@ -1,10 +1,7 @@
 import re
 from urllib.parse import urlparse, urljoin, urlunparse
-from urllib import robotparser
 from bs4 import BeautifulSoup
-from nltk.tokenize import word_tokenize
 import hashlib
-
 
 # Set of unique pages
 unique_pages = set()
@@ -14,7 +11,6 @@ longest_page_words = ['page_url', 0]
 word_frequency = {}
 # Dictionary containing [subdomain] = # of occurrences
 subdomains = {}
-
 
 # Set of all visited urls
 visited_urls = set()
@@ -30,20 +26,22 @@ normalized_paths = set()
 count = 0
 
 def normalize(url):
+    # Normalizes url by getting rid of duplicates in path
     parsed_url = urlparse(url)
     path_segments = []
 
     for segment in parsed_url.path.split('/'):
-        if segment and segment not in path_segments:
-
+        # Add segments if they don't already exist in the path
+        if segment and (segment not in path_segments):
             path_segments.append(segment)
 
     # Get normalized path up til path, excludes fragments, query, etc
     normalized_path = '/'.join(path_segments)
+    # Create url again
     return urlunparse((parsed_url.scheme, parsed_url.netloc, normalized_path, parsed_url.params, parsed_url.query, ''))
 
 def calculate_hash(content):
-    # Calculate hash value
+    # Calculate hash value with hashlib
     content_hash = hashlib.sha256(content).hexdigest()
     return content_hash
 
@@ -104,6 +102,7 @@ def scraper(url, resp):
         norm1 = normalize(url)
         normalized_paths.add(norm1)
 
+    # Use resp.url and get rid of fragment
     url = resp.url
     url = url.split("#")[0]
 
@@ -128,11 +127,6 @@ def scraper(url, resp):
     if current_depth > 500:
         return []
 
-    #print(f'Checking trap: {url}')
-    #if is_Trap(url):
-       # print(f'Is a trap: {url}')
-       # return []
-
     # Add url to visited
     # visited_urls contains all visited urls, the entire url (not used for counting unique urls, only for not re-visiting)
     visited_urls.add(url)
@@ -151,6 +145,7 @@ def scraper(url, resp):
     if links == []:
         return []
 
+    # Calculate current hash and see if seen exact page before
     current_hash = calculate_hash(resp.raw_response.content)
     if current_hash in previous_hashes:
         print('Not browsing, exact page has been seen')
@@ -159,7 +154,7 @@ def scraper(url, resp):
         previous_hashes.add(current_hash)
 
 
-
+    # Reset for memory
     if len(previous_links) > 500:
         previous_links = []
 
@@ -185,7 +180,6 @@ def scraper(url, resp):
 
     print(f"Visiting url : '{url}'")
 
-    #return [link for link in links if is_valid(link)]
     frontier_list = [link for link in links if is_valid(link)]
 
     # Add to seen urls
@@ -243,9 +237,6 @@ def extract_next_links(url, resp):
         # Join the original url with the new href and append
         if href:
             full_url = urljoin(url, href)
-                # Join relative URL with the original URL (resp.url)
-                #base_url = urlparse(resp.url).scheme + '://' + urlparse(resp.url).netloc
-                #full_url = urljoin(base_url, href)
             # Remove fragment from the full URL
             full_url = full_url.split('#')[0]
             links.append(full_url)
@@ -265,22 +256,18 @@ def is_valid(url):
         normal_link = normalize(url)
         if normal_link in normalized_paths:
             return False
-        if "filter" in url:
-            return False
+       # if "filter" in url:
+        #    return False
         if is_Trap(url):
             return False
         if parsed.scheme not in set(["http", "https"]):
             return False
         if correct_domain(url) == False:
             return False
-        #if not re.match(r"(www\.)?(ics|cs|informatics|stat)\.uci\.edu", parsed.netloc):
-         #   return False
-        #if not re.match(r"/\w+", parsed.path):
-         #   return False
         if url in visited_urls:
             return False
-        if not robots_valid_search(url):
-            return False
+       # if not robots_valid_search(url):
+        #    return False
         return not re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r" |png|tiff?|mid|mp2|mp3|mp4"
@@ -298,7 +285,7 @@ def is_valid(url):
 def correct_domain(url):
     parsed_url = urlparse(url)
     domain = parsed_url.netloc
-
+    # Return true if in specified domains
     if domain == "ics.uci.edu" or domain.endswith(".ics.uci.edu"):
         return True
     if domain == "cs.uci.edu" or domain.endswith(".cs.uci.edu"):
@@ -312,14 +299,9 @@ def correct_domain(url):
 def is_Trap(url):
     global previous_links
 
-   # if len(url) > 300:
-        # with open("TestTrap.txt", "a") as file:
-        #     file.write("It's a 300 trap " + url + "\n")
-       # return True
-
     if len(previous_links) > 150:
 
-        # Loop through previous 20 URLs
+        # Loop through previous 140 URLs
         for i in range(-1, -140, -1):
             past_url = previous_links[i]
 
@@ -342,12 +324,12 @@ def is_Trap(url):
                 # Reset for next URL
                 num_differences = 0
         # If it loops through all 20 URLs and their differences arent high enough, you are in a trap
-        with open("TestTrap.txt", "a") as file:
-            file.write("It's a trap " + url + "\n")
+        # with open("TestTrap.txt", "a") as file:
+        #     file.write("It's a trap " + url + "\n")
         return True
 
     else:
-        # False (Not in trap) if haven't even visited 50 urls yet
+        # False (Not in trap) if haven't even visited 150 urls yet
         return False
 
 
