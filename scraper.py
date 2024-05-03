@@ -256,8 +256,8 @@ def is_valid(url):
         normal_link = normalize(url)
         if normal_link in normalized_paths:
             return False
-       # if "filter" in url:
-        #    return False
+        if "filter" in url:
+            return False
         if is_Trap(url):
             return False
         if parsed.scheme not in set(["http", "https"]):
